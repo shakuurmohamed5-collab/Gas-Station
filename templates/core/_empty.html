@@ -1,0 +1,6 @@
+<div class="empty-state">
+    <i class="bi {{ icon|default:'bi-inbox' }}"></i>
+    <h3>{{ title|default:"Nothing here yet" }}</h3>
+    <p>{{ text|default:"New records will appear here as soon as they are added." }}</p>
+    {% if action_url %}<a class="btn btn-primary btn-sm" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+</div>

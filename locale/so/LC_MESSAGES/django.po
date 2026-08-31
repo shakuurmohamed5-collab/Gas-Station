@@ -1,0 +1,10 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: GasFlow 1.0\n"
+"Language: so\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# GasFlow uses the curated business-language catalog in core/somali.py.
+# This standard locale marker lets Django validate and persist Somali.

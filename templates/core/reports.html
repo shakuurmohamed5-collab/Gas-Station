@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Business performance</div><h1>Sales report</h1><p>Review units, revenue, payments, and costs for any period.</p></div><div class="heading-actions"><button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i> Print report</button></div></div>
+<form id="report-filter-form" method="get" class="panel filter-bar no-print">
+    <div class="row g-2 align-items-end">
+        <div class="col-12">
+            <label class="form-label" for="report-period">Report period</label>
+            <select id="report-period" class="form-select" name="period">
+                <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+                <option value="last_7_days" {% if period == 'last_7_days' %}selected{% endif %}>Last 7 days</option>
+                <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>This month</option>
+                <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Last month</option>
+                <option value="range" {% if period == 'range' %}selected{% endif %}>Custom range</option>
+            </select>
+        </div>
+        <div id="custom-range-fields" class="col-12 {% if period != 'range' %}d-none{% endif %}">
+            <div class="row g-2">
+                <div class="col-sm-6"><label class="form-label" for="report-start">From</label><input id="report-start" class="form-control" type="date" name="start" value="{{ start|date:'Y-m-d' }}"></div>
+                <div class="col-sm-6"><label class="form-label" for="report-end">To</label><input id="report-end" class="form-control" type="date" name="end" value="{{ end|date:'Y-m-d' }}"></div>
+            </div>
+        </div>
+    </div>
+    <div class="auto-filter-note"><i class="bi bi-lightning-charge"></i> Report updates automatically</div>
+</form>
+<div class="mb-3 text-secondary small">Showing {{ start|date:"d M Y" }} to {{ end|date:"d M Y" }}</div>
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl"><div class="panel metric-card"><div class="metric-icon"><i class="bi bi-receipt"></i></div><span>Sales value</span><strong>{{ company.currency }}{{ revenue|floatformat:2 }}</strong></div></div>
+    <div class="col-6 col-xl"><div class="panel metric-card amber"><div class="metric-icon"><i class="bi bi-fire"></i></div><span>Cylinder gas sold</span><strong>{{ gas_only_sales }}</strong></div></div>
+    <div class="col-6 col-xl"><div class="panel metric-card"><div class="metric-icon"><i class="bi bi-cash-stack"></i></div><span>Collected</span><strong>{{ company.currency }}{{ collected|floatformat:2 }}</strong></div></div>
+    <div class="col-6 col-xl"><div class="panel metric-card red"><div class="metric-icon"><i class="bi bi-arrow-up-right"></i></div><span>Expenses</span><strong>{{ company.currency }}{{ expense_total|floatformat:2 }}</strong></div></div>
+    <div class="col-12 col-xl"><div class="panel metric-card"><div class="metric-icon"><i class="bi bi-safe"></i></div><span>Operating profit</span><strong class="{% if operating_profit < 0 %}text-danger{% endif %}">{{ company.currency }}{{ operating_profit|floatformat:2 }}</strong><small>Sales less product costs and expenses</small></div></div>
+</div>
+<div class="row g-3">
+    <div class="col-xl-7"><div class="panel"><div class="panel-header"><div><h2>Daily sales</h2><div class="text-secondary small">{{ units }} units supplied · Gross profit {{ company.currency }}{{ gross_profit|floatformat:2 }}</div></div></div>{% if daily %}<div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Units</th><th class="text-end">Sales value</th></tr></thead><tbody>{% for row in daily %}<tr><td><strong>{{ row.date|date:"l, d M Y" }}</strong></td><td>{{ row.quantity }}</td><td class="text-end fw-bold">{{ company.currency }}{{ row.revenue|floatformat:2 }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{% include 'core/_empty.html' with icon='bi-calendar3' title='No sales in this period' text='Choose another date range or begin recording sales.' %}{% endif %}</div></div>
+    <div class="col-xl-5"><div class="panel"><div class="panel-header"><div><h2>Best-selling cylinders</h2><div class="text-secondary small">Ranked by quantity</div></div></div>{% if popular %}<div class="panel-body pt-0">{% for row in popular %}<div class="d-flex align-items-center gap-3 py-3 {% if not forloop.last %}border-bottom{% endif %}"><span class="avatar" style="border-radius:10px">{{ forloop.counter }}</span><div class="flex-grow-1"><strong>{{ row.cylinder__name }}</strong><div class="text-secondary small">{{ row.cylinder__size }}</div></div><div class="text-end"><strong>{{ row.quantity }} sold</strong><div class="text-secondary small">{{ company.currency }}{{ row.revenue|floatformat:2 }}</div></div></div>{% endfor %}</div>{% else %}{% include 'core/_empty.html' with icon='bi-trophy' title='No ranking yet' text='Best-selling cylinder sizes will appear here.' %}{% endif %}</div></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+(() => {
+  const form = document.getElementById('report-filter-form');
+  const period = document.getElementById('report-period');
+  const rangeFields = document.getElementById('custom-range-fields');
+  const dates = form.querySelectorAll('input[type="date"]');
+  period.addEventListener('change', () => {
+    const custom = period.value === 'range';
+    rangeFields.classList.toggle('d-none', !custom);
+    if (!custom) form.requestSubmit();
+  });
+  dates.forEach(input => input.addEventListener('change', () => {
+    if ([...dates].every(dateInput => dateInput.value)) form.requestSubmit();
+  }));
+})();
+</script>{% endblock %}

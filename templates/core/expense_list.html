@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Expenses{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Cash out</div><h1>Expenses</h1><p>Keep operating costs beside your sales records.</p></div><div class="heading-actions"><a href="{% url 'expense_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Record expense</a></div></div>
+<div class="row g-3 mb-3"><div class="col-sm-6 col-xl-3"><div class="panel metric-card red"><div class="metric-icon"><i class="bi bi-wallet2"></i></div><span>All recorded expenses</span><strong>{{ company.currency }}{{ total|floatformat:2 }}</strong><small>Lifetime total</small></div></div></div>
+<div class="panel">{% if expenses %}<div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Recorded by</th><th class="text-end">Amount</th></tr></thead><tbody>{% for expense in expenses %}<tr><td>{{ expense.expense_date|date:"d M Y" }}</td><td><span class="badge text-bg-light">{{ expense.get_category_display }}</span></td><td><strong>{{ expense.description }}</strong></td><td>{{ expense.recorded_by.get_full_name|default:expense.recorded_by.username }}</td><td class="text-end fw-bold">{{ company.currency }}{{ expense.amount|floatformat:2 }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{% url 'expense_create' as add_url %}{% include 'core/_empty.html' with icon='bi-wallet2' title='No expenses recorded' text='Add transport, utilities, supplies, and other operating expenses.' action_url=add_url action_label='Record expense' %}{% endif %}</div>
+{% include 'core/_pagination.html' with page_obj=expenses %}
+{% endblock %}

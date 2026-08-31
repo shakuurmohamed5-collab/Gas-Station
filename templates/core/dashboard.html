@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_head %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>{% endblock %}
+{% block content %}
+<div class="page-heading dashboard-heading">
+    <div><div class="eyebrow">{{ today|date:"l, d F Y" }}</div><h1>Good day, {{ request.user.first_name|default:request.user.username }}</h1><p>A quick view of today’s gas sales, cash, balances, and stock.</p></div>
+    <div class="heading-actions"><a href="{% url 'customer_create' %}" class="btn btn-outline-secondary"><i class="bi bi-person-plus me-1"></i> Add customer</a><a href="{% url 'sale_create' %}" class="btn btn-warning"><i class="bi bi-plus-lg me-1"></i> Record sale</a></div>
+</div>
+
+<div class="row g-3 mb-3 dashboard-metrics">
+    <div class="col-6 col-xl-3"><div class="panel metric-card dashboard-metric green"><div class="metric-icon"><i class="bi bi-graph-up-arrow"></i></div><div><span>Today’s sales</span><strong>{{ company.currency }}{{ sales_total|floatformat:2 }}</strong><small>{{ sales_count }} invoice{{ sales_count|pluralize }} recorded</small></div></div></div>
+    <div class="col-6 col-xl-3"><div class="panel metric-card dashboard-metric amber"><div class="metric-icon"><i class="bi bi-fire"></i></div><div><span>Gas supplied</span><strong>{{ gas_units }}</strong><small>Refill units sold today</small></div></div></div>
+    <div class="col-6 col-xl-3"><div class="panel metric-card dashboard-metric blue"><div class="metric-icon"><i class="bi bi-cash-stack"></i></div><div><span>Cash collected</span><strong>{{ company.currency }}{{ collected|floatformat:2 }}</strong><small>Payments received today</small></div></div></div>
+    <div class="col-6 col-xl-3"><div class="panel metric-card dashboard-metric red"><div class="metric-icon"><i class="bi bi-exclamation-circle"></i></div><div><span>Customer balance</span><strong>{{ company.currency }}{{ outstanding|floatformat:2 }}</strong><small>Still unpaid across invoices</small></div></div></div>
+</div>
+
+{% if request.user.is_superuser %}
+<div class="admin-summary mb-3">
+    <div><span>Today’s gross profit</span><strong>{{ company.currency }}{{ gross_profit|floatformat:2 }}</strong></div>
+    <div><span>Today’s expenses</span><strong>{{ company.currency }}{{ today_expenses|floatformat:2 }}</strong></div>
+    <div><span>Net cash today</span><strong class="{% if net_cash < 0 %}text-danger{% endif %}">{{ company.currency }}{{ net_cash|floatformat:2 }}</strong></div>
+    <a href="{% url 'reports' %}">Open reports <i class="bi bi-arrow-right"></i></a>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-xl-8">
+        <div class="panel h-100 chart-panel">
+            <div class="panel-header"><div><h2>Last 7 days</h2><div class="text-secondary small">Sales value compared with cash collected</div></div>{% if request.user.is_superuser %}<a href="{% url 'reports' %}" class="btn btn-sm btn-outline-secondary">Full report</a>{% endif %}</div>
+            <div class="panel-body pt-0"><div class="chart-wrap"><canvas id="salesChart"></canvas><div id="chartFallback" class="chart-fallback d-none"><i class="bi bi-bar-chart"></i><span>Chart is unavailable, but today’s totals above are current.</span></div></div></div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="panel h-100 stock-attention">
+            <div class="panel-header"><div><h2>Stock attention</h2><div class="text-secondary small">{{ low_stock_count }} product{{ low_stock_count|pluralize }} at or below reorder level</div></div><a href="{% url 'cylinder_list' %}" class="btn btn-sm btn-outline-secondary">View stock</a></div>
+            {% if low_stock %}<div class="panel-body pt-0">
+                {% for product in low_stock %}<div class="stock-alert {% if product.stock_quantity == 0 %}out{% endif %}"><div class="stock-alert-icon"><i class="bi {% if product.product_type == 'cylinder_gas' %}bi-fire{% else %}bi-box-seam{% endif %}"></i></div><div class="stock-alert-copy"><strong>{{ product.name }} · {{ product.size }}</strong><span>{{ product.get_product_type_display }} · reorder at {{ product.reorder_level }}</span></div><div class="stock-alert-count"><strong>{{ product.stock_quantity }}</strong><span>{% if product.stock_quantity == 0 %}Out{% else %}Left{% endif %}</span></div></div>{% endfor %}
+            </div>{% else %}{% include 'core/_empty.html' with icon='bi-check2-circle' title='Stock levels look good' text='No active product is below its reorder level.' %}{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="panel recent-sales-panel">
+    <div class="panel-header"><div><h2>Recent sales</h2><div class="text-secondary small">Latest invoices and payment status</div></div><a href="{% url 'sale_list' %}" class="btn btn-sm btn-outline-secondary">View all</a></div>
+    {% if recent_sales %}<div class="table-responsive"><table class="table"><thead><tr><th>Invoice</th><th>Customer</th><th>Date</th>{% if request.user.is_superuser %}<th>Recorded by</th>{% endif %}<th>Amount</th><th>Balance</th><th>Status</th></tr></thead><tbody>
+    {% for sale in recent_sales %}<tr><td><a class="table-link" href="{% url 'sale_detail' sale.pk %}">{{ sale.invoice_number }}</a></td><td><strong>{{ sale.customer.name }}</strong><br><small class="text-secondary">{{ sale.customer.phone }}</small></td><td>{{ sale.sale_date|date:"d M Y" }}</td>{% if request.user.is_superuser %}<td>{{ sale.created_by.get_full_name|default:sale.created_by.username }}</td>{% endif %}<td>{{ company.currency }}{{ sale.dashboard_total|floatformat:2 }}</td><td>{{ company.currency }}{{ sale.dashboard_balance|floatformat:2 }}</td><td><span class="status status-{{ sale.payment_status }}">{{ sale.get_payment_status_display }}</span></td></tr>{% endfor %}
+    </tbody></table></div>{% else %}{% url 'sale_create' as new_sale_url %}{% include 'core/_empty.html' with icon='bi-receipt' title='No sales recorded yet' text='Record the first sale and it will appear here.' action_url=new_sale_url action_label='Record sale' %}{% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const ctx = document.getElementById('salesChart');
+const fallback = document.getElementById('chartFallback');
+if (ctx && window.Chart) {
+    new Chart(ctx, {
+        data: {labels: {{ chart_labels|safe }}, datasets: [
+            {type: 'bar', label: 'Sales', data: {{ chart_values|safe }}, backgroundColor: '#0b7666', hoverBackgroundColor: '#07564b', borderRadius: 8, borderSkipped: false, barPercentage: .58},
+            {type: 'line', label: 'Cash collected', data: {{ chart_collected|safe }}, borderColor: '#f2a900', backgroundColor: '#f2a900', pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 3, tension: .38, borderWidth: 3}
+        ]},
+        options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, plugins: {legend: {position: 'top', align: 'end', labels: {usePointStyle: true, boxWidth: 8, color: '#61736f', font: {family: 'DM Sans', weight: 600}}}, tooltip: {callbacks: {label: c => ' ' + c.dataset.label + ': {{ company.currency }}' + Number(c.raw).toLocaleString()}}}, scales: {x: {grid: {display: false}, border: {display: false}, ticks: {color: '#7f8f8b', font: {family: 'DM Sans', weight: 600}}}, y: {beginAtZero: true, border: {display: false}, grid: {color: '#e9efec'}, ticks: {color: '#91a09d', callback: v => '{{ company.currency }}' + v}}}}
+    });
+} else if (ctx && fallback) {
+    ctx.classList.add('d-none'); fallback.classList.remove('d-none');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block title %}Record sale{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">New transaction</div><h1>Record a sale</h1><p>Select cooking machine, new cylinder, or cylinder gas from the product list.</p></div></div>
+<form method="post" novalidate id="sale-form">
+{% csrf_token %}
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="panel mb-3">
+            <div class="panel-header"><div><h2>Customer & date</h2><div class="text-secondary small">Search existing customers by phone or create a new customer while recording the sale</div></div></div>
+            <div class="panel-body pt-0">
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <label class="form-label" for="{{ form.customer_phone.id_for_label }}">Customer phone number <span class="text-danger">*</span></label>
+                        <div class="customer-lookup">
+                            <div class="search-input"><i class="bi bi-telephone"></i>{{ form.customer_phone }}</div>
+                            <div id="customer-suggestions" class="customer-suggestions d-none" role="listbox" aria-label="Matching customers"></div>
+                        </div>
+                        {% if form.customer_phone.help_text %}<div class="form-text">{{ form.customer_phone.help_text }}</div>{% endif %}
+                        {{ form.customer_phone.errors }}
+                    </div>
+                    <div class="col-md-5"><label class="form-label" for="{{ form.sale_date.id_for_label }}">Sale date <span class="text-danger">*</span></label>{{ form.sale_date }}{{ form.sale_date.errors }}</div>
+                    <div class="col-md-7"><label class="form-label" for="{{ form.customer_name.id_for_label }}">Customer name <span class="text-danger">*</span></label>{{ form.customer_name }}<div id="customer-match-note" class="form-text">Choose a suggestion above, or enter the name for a new customer.</div>{{ form.customer_name.errors }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="panel"><div class="panel-header"><div><h2>Products supplied</h2><div class="text-secondary small">Start with one line. Add another only when the customer buys more than one product.</div></div></div><div class="panel-body pt-0">
+            {{ formset.management_form }}
+            {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+            <div class="sale-items-head"><span>Product & size</span><span>Quantity</span><span>Unit price</span><span></span></div>
+            <div id="sale-items">{% for item_form in formset %}<div class="sale-item-row"><div class="cylinder-field">{{ item_form.id }}{{ item_form.cylinder }}{{ item_form.cylinder.errors }}</div><div>{{ item_form.quantity }}{{ item_form.quantity.errors }}</div><div>{{ item_form.unit_price }}{{ item_form.unit_price.errors }}</div><div class="delete-cell">{% if item_form.instance.pk %}{{ item_form.DELETE }}{% endif %}</div></div>{% endfor %}</div>
+            <button type="button" id="add-sale-item" class="btn btn-sm btn-outline-secondary mt-2"><i class="bi bi-plus-lg me-1"></i> Add another product</button>
+            <template id="empty-sale-item"><div class="sale-item-row"><div class="cylinder-field">{{ formset.empty_form.id }}{{ formset.empty_form.cylinder }}</div><div>{{ formset.empty_form.quantity }}</div><div>{{ formset.empty_form.unit_price }}</div><div class="delete-cell"><button type="button" class="btn btn-sm btn-link text-danger remove-sale-item" aria-label="Remove product"><i class="bi bi-x-lg"></i></button></div></div></template>
+        </div></div>
+    </div>
+    <div class="col-xl-4">
+        <div class="panel position-sticky" style="top:24px">
+            <div class="panel-header"><div><h2>Complete sale</h2><div class="text-secondary small">Choose payment status and save once</div></div></div>
+            <div class="panel-body pt-0">
+                <div class="mb-3"><label class="form-label">Discount</label>{{ form.discount }}{{ form.discount.errors }}</div>
+                <div class="mb-3"><label class="form-label">Notes</label>{{ form.notes }}{{ form.notes.errors }}</div>
+                <div class="mb-3">
+                    <label class="form-label d-block">Payment status</label>
+                    <div class="payment-choice-grid">
+                        {% for choice in form.payment_status_choice %}
+                        <label class="payment-choice-card">
+                            {{ choice.tag }}
+                            <span class="payment-choice-icon"><i class="bi {% if forloop.first %}bi-check-circle-fill{% else %}bi-clock-fill{% endif %}"></i></span>
+                            <span><strong>{{ choice.choice_label }}</strong><small>{% if forloop.first %}Full payment received now{% else %}Customer will pay later{% endif %}</small></span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {{ form.payment_status_choice.errors }}
+                </div>
+                <div id="payment-method-wrap" class="mb-3"><label class="form-label" for="{{ form.payment_method.id_for_label }}">Payment method</label>{{ form.payment_method }}{{ form.payment_method.errors }}</div>
+                <div class="summary-box"><div class="summary-line"><span>Items subtotal</span><strong id="preview-subtotal">{{ company.currency }}0.00</strong></div><div class="summary-line"><span>Discount</span><strong id="preview-discount">− {{ company.currency }}0.00</strong></div><div class="summary-line total"><span>Invoice total</span><strong id="preview-total">{{ company.currency }}0.00</strong></div><div class="summary-line payment-preview"><span>Payment now</span><strong id="preview-payment">{{ company.currency }}0.00</strong></div></div>
+                <button type="submit" class="btn btn-warning w-100 mt-3 py-3"><i class="bi bi-check2-circle me-1"></i> Save & complete sale</button>
+                <div class="text-secondary text-center mt-2 sale-save-note">No second payment page is needed.</div>
+            </div>
+        </div>
+    </div>
+</div>
+</form>
+{{ cylinder_prices|json_script:"cylinder-prices" }}
+{% endblock %}
+{% block extra_js %}<script>
+const prices = JSON.parse(document.getElementById('cylinder-prices').textContent);
+const currency = '{{ company.currency|escapejs }}';
+
+function calculate() {
+  let subtotal = 0;
+  document.querySelectorAll('#sale-items .sale-item-row').forEach(row => {
+    const quantity = parseFloat(row.querySelector('[name$="-quantity"]')?.value || 0);
+    const price = parseFloat(row.querySelector('[name$="-unit_price"]')?.value || 0);
+    subtotal += quantity * price;
+  });
+  const discount = parseFloat(document.getElementById('id_discount')?.value || 0);
+  document.getElementById('preview-subtotal').textContent = currency + subtotal.toFixed(2);
+  document.getElementById('preview-discount').textContent = '− ' + currency + discount.toFixed(2);
+  const total = Math.max(0, subtotal - discount);
+  document.getElementById('preview-total').textContent = currency + total.toFixed(2);
+  const markedPaid = document.querySelector('[name="payment_status_choice"]:checked')?.value === 'paid';
+  document.getElementById('preview-payment').textContent = currency + (markedPaid ? total : 0).toFixed(2);
+}
+
+function updatePaymentChoice() {
+  const markedPaid = document.querySelector('[name="payment_status_choice"]:checked')?.value === 'paid';
+  document.getElementById('payment-method-wrap')?.classList.toggle('d-none', !markedPaid);
+  document.querySelectorAll('.payment-choice-card').forEach(card => card.classList.toggle('selected', card.querySelector('input')?.checked));
+  calculate();
+}
+
+function setupRow(row) {
+  const cylinder = row.querySelector('[name$="-cylinder"]');
+  const price = row.querySelector('[name$="-unit_price"]');
+  const updatePrice = () => {
+    if (cylinder?.value && prices[cylinder.value]) price.value = prices[cylinder.value];
+    calculate();
+  };
+  cylinder?.addEventListener('change', updatePrice);
+  row.querySelectorAll('input,select').forEach(input => input.addEventListener('input', calculate));
+  row.querySelector('.remove-sale-item')?.addEventListener('click', () => { row.remove(); calculate(); });
+}
+document.querySelectorAll('#sale-items .sale-item-row').forEach(setupRow);
+document.getElementById('add-sale-item')?.addEventListener('click', () => {
+  const totalInput = document.getElementById('id_items-TOTAL_FORMS');
+  const index = Number(totalInput.value);
+  const html = document.getElementById('empty-sale-item').innerHTML.replaceAll('__prefix__', index);
+  const holder = document.createElement('div');
+  holder.innerHTML = html.trim();
+  const row = holder.firstElementChild;
+  document.getElementById('sale-items').appendChild(row);
+  totalInput.value = index + 1;
+  setupRow(row);
+});
+document.getElementById('id_discount')?.addEventListener('input', calculate);
+document.querySelectorAll('[name="payment_status_choice"]').forEach(input => input.addEventListener('change', updatePaymentChoice));
+calculate();
+updatePaymentChoice();
+
+const phoneInput = document.getElementById('id_customer_phone');
+const nameInput = document.getElementById('id_customer_name');
+const suggestions = document.getElementById('customer-suggestions');
+const matchNote = document.getElementById('customer-match-note');
+let lookupTimer;
+let lookupController;
+
+function hideSuggestions() {
+  suggestions.classList.add('d-none');
+  suggestions.replaceChildren();
+}
+
+function chooseCustomer(customer) {
+  phoneInput.value = customer.phone;
+  nameInput.value = customer.name;
+  matchNote.textContent = customer.balance !== '0.00'
+    ? `Existing customer selected · Balance due: ${currency}${customer.balance}`
+    : 'Existing customer selected · No unpaid balance';
+  matchNote.className = 'form-text text-success fw-semibold';
+  hideSuggestions();
+}
+
+function renderSuggestions(results) {
+  suggestions.replaceChildren();
+  if (!results.length) {
+    const empty = document.createElement('div');
+    empty.className = 'customer-suggestion-empty';
+    empty.textContent = 'No existing customer found. Enter their name below to add them with this sale.';
+    suggestions.appendChild(empty);
+  } else {
+    results.forEach(customer => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'customer-suggestion';
+      button.setAttribute('role', 'option');
+      const avatar = document.createElement('span');
+      avatar.className = 'customer-suggestion-avatar';
+      avatar.textContent = customer.name.charAt(0).toUpperCase();
+      const details = document.createElement('span');
+      details.className = 'customer-suggestion-details';
+      const customerName = document.createElement('strong');
+      customerName.textContent = customer.name;
+      const phone = document.createElement('small');
+      phone.textContent = customer.phone + (customer.address ? ` · ${customer.address}` : '');
+      details.append(customerName, phone);
+      const balance = document.createElement('span');
+      balance.className = Number(customer.balance) > 0 ? 'customer-balance due' : 'customer-balance';
+      balance.textContent = Number(customer.balance) > 0 ? `${currency}${customer.balance} due` : 'No balance';
+      button.append(avatar, details, balance);
+      button.addEventListener('click', () => chooseCustomer(customer));
+      suggestions.appendChild(button);
+    });
+  }
+  suggestions.classList.remove('d-none');
+}
+
+phoneInput?.addEventListener('input', () => {
+  window.clearTimeout(lookupTimer);
+  matchNote.textContent = 'Choose a suggestion above, or enter the name for a new customer.';
+  matchNote.className = 'form-text';
+  const query = phoneInput.value.trim();
+  if (query.length < 2) { hideSuggestions(); return; }
+  lookupTimer = window.setTimeout(async () => {
+    lookupController?.abort();
+    lookupController = new AbortController();
+    try {
+      const response = await fetch(`{% url 'customer_search' %}?q=${encodeURIComponent(query)}`, {signal: lookupController.signal});
+      if (!response.ok) return;
+      const data = await response.json();
+      renderSuggestions(data.results);
+    } catch (error) {
+      if (error.name !== 'AbortError') hideSuggestions();
+    }
+  }, 220);
+});
+
+document.addEventListener('click', event => {
+  if (!event.target.closest('.customer-lookup')) hideSuggestions();
+});
+</script>{% endblock %}

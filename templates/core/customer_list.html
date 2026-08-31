@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Customer book</div><h1>Customers</h1><p>Search by name or phone number to see purchases and unpaid balances.</p></div><div class="heading-actions"><a href="{% url 'customer_create' %}" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i> Add customer</a></div></div>
+<form class="panel filter-bar" method="get"><div class="row g-2"><div class="col-md-10"><div class="search-input"><i class="bi bi-search"></i><input name="q" value="{{ q }}" class="form-control" placeholder="Search name, phone number, or alternate phone…" autofocus></div></div><div class="col-md-2"><button class="btn btn-primary w-100 h-100">Search</button></div></div></form>
+<div class="panel">
+{% if customers %}<div class="table-responsive"><table class="table"><thead><tr><th>Customer</th><th>Phone number</th><th>Address</th><th>Joined</th><th></th></tr></thead><tbody>
+{% for customer in customers %}<tr><td><a class="table-link" href="{% url 'customer_detail' customer.pk %}">{{ customer.name }}</a></td><td><a class="phone-link" href="tel:{{ customer.phone }}"><i class="bi bi-telephone me-1"></i>{{ customer.phone }}</a></td><td>{{ customer.address|default:"—" }}</td><td>{{ customer.created_at|date:"d M Y" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'customer_detail' customer.pk %}">View record</a></td></tr>{% endfor %}
+</tbody></table></div>{% else %}{% url 'customer_create' as add_url %}{% include 'core/_empty.html' with icon='bi-people' title='No customers found' text='Try a different phone number or create a new customer record.' action_url=add_url action_label='Add customer' %}{% endif %}
+</div>
+{% include 'core/_pagination.html' with page_obj=customers %}
+{% endblock %}

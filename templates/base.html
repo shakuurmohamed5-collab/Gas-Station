@@ -1,0 +1,108 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b4d43">
+    <title>{% block title %}Dashboard{% endblock %} · {{ company.name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260830.3">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+<aside class="sidebar d-none d-lg-flex">
+    <a class="brand" href="{% url 'dashboard' %}">
+        <span class="brand-mark"><i class="bi bi-fire"></i></span>
+        <span><strong>{{ company.name }}</strong><small>Business manager</small></span>
+    </a>
+
+    <nav class="side-nav">
+        <span class="nav-label">Workspace</span>
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></a>
+        <a href="{% url 'sale_create' %}" class="{% if request.resolver_match.url_name == 'sale_create' %}active{% endif %}"><i class="bi bi-plus-square-fill"></i><span>New sale</span></a>
+        <a href="{% url 'sale_list' %}" class="{% if 'sale' in request.resolver_match.url_name and request.resolver_match.url_name != 'sale_create' %}active{% endif %}"><i class="bi bi-receipt"></i><span>Sales & invoices</span></a>
+        <a href="{% url 'customer_list' %}" class="{% if 'customer' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-people"></i><span>Customers</span></a>
+        <a href="{% url 'cylinder_list' %}" class="{% if 'cylinder' in request.resolver_match.url_name or 'stock_movement' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-box-seam"></i><span>Products & stock</span></a>
+
+        <span class="nav-label mt-4">Finance</span>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'expense_list' %}" class="{% if 'expense' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-wallet2"></i><span>Expenses</span></a>
+        <a href="{% url 'reports' %}" class="{% if request.resolver_match.url_name == 'reports' %}active{% endif %}"><i class="bi bi-bar-chart-line"></i><span>Reports</span></a>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <form action="{% url 'language_switch' %}" method="post" class="language-switch mb-3">
+            {% csrf_token %}<input name="next" type="hidden" value="{{ request.get_full_path }}">
+            <button name="language" value="en" class="{% if LANGUAGE_CODE == 'en' or LANGUAGE_CODE == 'en-us' %}active{% endif %}">English</button>
+            <button name="language" value="so" class="{% if LANGUAGE_CODE == 'so' %}active{% endif %}">Soomaali</button>
+        </form>
+        <a href="{% url 'password_change' %}" class="footer-link"><i class="bi bi-shield-lock"></i> Change password</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'employee_list' %}" class="footer-link"><i class="bi bi-person-badge"></i> Employees</a>
+        <a href="{% url 'settings' %}" class="footer-link"><i class="bi bi-gear"></i> Company settings</a>
+        {% endif %}
+        <div class="user-chip">
+            <span class="avatar">{{ request.user.username|first|upper }}</span>
+            <span class="user-meta"><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>{% if request.user.is_superuser %}Administrator{% else %}{{ request.user.employee_profile.job_title|default:"Employee" }}{% endif %}</small></span>
+            <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button title="Sign out" class="logout-btn"><i class="bi bi-box-arrow-right"></i></button></form>
+        </div>
+    </div>
+</aside>
+
+<main class="app-main">
+    <header class="mobile-header d-lg-none">
+        <a class="mobile-brand" href="{% url 'dashboard' %}"><span class="brand-mark"><i class="bi bi-fire"></i></span><strong>{{ company.name }}</strong></a>
+        <div class="dropdown">
+            <button class="btn btn-light btn-sm rounded-circle" data-bs-toggle="dropdown" aria-label="Open more navigation"><i class="bi bi-three-dots"></i></button>
+            <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+                <form action="{% url 'language_switch' %}" method="post" class="px-3 py-2">
+                    {% csrf_token %}<input name="next" type="hidden" value="{{ request.get_full_path }}">
+                    <div class="language-switch light"><button name="language" value="en" class="{% if LANGUAGE_CODE == 'en' or LANGUAGE_CODE == 'en-us' %}active{% endif %}">English</button><button name="language" value="so" class="{% if LANGUAGE_CODE == 'so' %}active{% endif %}">Soomaali</button></div>
+                </form>
+                {% if request.user.is_superuser %}
+                <a class="dropdown-item py-2" href="{% url 'expense_list' %}"><i class="bi bi-wallet2 me-2"></i> Expenses</a>
+                <a class="dropdown-item py-2" href="{% url 'reports' %}"><i class="bi bi-bar-chart-line me-2"></i> Reports</a>
+                <a class="dropdown-item py-2" href="{% url 'employee_list' %}"><i class="bi bi-person-badge me-2"></i> Employees</a>
+                <a class="dropdown-item py-2" href="{% url 'settings' %}"><i class="bi bi-gear me-2"></i> Company settings</a>
+                {% endif %}
+                <a class="dropdown-item py-2" href="{% url 'password_change' %}"><i class="bi bi-shield-lock me-2"></i> Change password</a>
+                <div class="dropdown-divider"></div>
+                <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="dropdown-item py-2 text-danger"><i class="bi bi-box-arrow-right me-2"></i> Sign out</button></form>
+            </div>
+        </div>
+    </header>
+    <div class="content-wrap">
+        {% if messages %}
+        <div class="message-stack">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<nav class="bottom-nav d-lg-none">
+    <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><i class="bi bi-grid"></i><span>Home</span></a>
+    <a href="{% url 'customer_list' %}" class="{% if 'customer' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-people"></i><span>Customers</span></a>
+    <a href="{% url 'sale_create' %}" class="new-sale-mobile"><span><i class="bi bi-plus-lg"></i></span><small>New sale</small></a>
+    <a href="{% url 'sale_list' %}" class="{% if 'sale' in request.resolver_match.url_name and request.resolver_match.url_name != 'sale_create' %}active{% endif %}"><i class="bi bi-receipt"></i><span>Sales</span></a>
+    <a href="{% url 'cylinder_list' %}" class="{% if 'cylinder' in request.resolver_match.url_name or 'stock_movement' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-box-seam"></i><span>Stock</span></a>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/app.js' %}?v=20260830.3"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

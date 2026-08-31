@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><div class="eyebrow">Administration</div><h1>Employees</h1><p>Control who can sign in and keep each transaction connected to the person who recorded it.</p></div>
+    <div class="heading-actions"><a href="{% url 'employee_create' %}" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i> Add employee</a></div>
+</div>
+<div class="panel">
+    {% if employees %}
+    <div class="table-responsive"><table class="table employee-table">
+        <thead><tr><th>Employee</th><th>Contact</th><th>Account</th><th>Activity</th><th>Last sign-in</th><th></th></tr></thead>
+        <tbody>{% for employee in employees %}<tr>
+            <td><div class="employee-cell"><span class="employee-avatar">{{ employee.first_name|default:employee.username|first|upper }}</span><div><strong>{{ employee.get_full_name|default:employee.username }}</strong><small>{{ employee.employee_profile.job_title|default:"Employee" }}</small></div></div></td>
+            <td>{{ employee.employee_profile.phone|default:"—" }}{% if employee.email %}<small class="d-block text-secondary">{{ employee.email }}</small>{% endif %}</td>
+            <td><span class="status {% if employee.is_active %}status-paid{% else %}status-unpaid{% endif %}">{% if employee.is_active %}Authorized{% else %}Deactivated{% endif %}</span><small class="d-block text-secondary mt-1">@{{ employee.username }}</small></td>
+            <td><strong>{{ employee.sales_recorded }}</strong> sales <span class="text-secondary">·</span> <strong>{{ employee.payments_recorded }}</strong> payments</td>
+            <td>{{ employee.last_login|date:"d M Y, H:i"|default:"Never" }}</td>
+            <td class="text-end"><a href="{% url 'employee_edit' employee.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i> Manage</a></td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    {% url 'employee_create' as add_employee_url %}{% include 'core/_empty.html' with icon='bi-person-badge' title='No employees yet' text='Add the first employee and authorize their sign-in.' action_url=add_employee_url action_label='Add employee' %}
+    {% endif %}
+</div>
+<div class="access-note mt-3"><i class="bi bi-shield-check"></i><div><strong>Simple, safe access</strong><span>Employees handle customers and sales. Only administrators can change stock, products, expenses, reports, settings, or employee accounts.</span></div></div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Sales & invoices{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Transactions</div><h1>Sales & invoices</h1><p>Find any invoice by number, customer name, or phone.</p></div><div class="heading-actions"><a href="{% url 'sale_create' %}" class="btn btn-warning"><i class="bi bi-plus-lg me-1"></i> Record sale</a></div></div>
+<form id="sales-filter-form" class="panel filter-bar" method="get"><div class="row g-2 align-items-center"><div class="col-md-8"><div class="search-input"><i class="bi bi-search"></i><input id="sales-search" name="q" value="{{ q }}" class="form-control" placeholder="Invoice, customer, or phone number…" autocomplete="off"></div></div><div class="col-md-4"><select id="sales-status" name="status" class="form-select"><option value="">All payment statuses</option>{% for value,label in statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div><div class="auto-filter-note"><i class="bi bi-lightning-charge"></i> Results update automatically</div></form>
+<div class="panel">
+{% if sales %}<div class="table-responsive"><table class="table sales-table"><thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Sale total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Update payment</th><th></th></tr></thead><tbody>
+{% for sale in sales %}<tr><td><a class="table-link" href="{% url 'sale_detail' sale.pk %}">{{ sale.invoice_number }}</a></td><td><a class="table-link" href="{% url 'customer_detail' sale.customer.pk %}">{{ sale.customer.name }}</a><br><small class="text-secondary">{{ sale.customer.phone }}</small></td><td>{{ sale.sale_date|date:"d M Y" }}</td><td>{{ company.currency }}{{ sale.total|floatformat:2 }}</td><td>{{ company.currency }}{{ sale.amount_paid|floatformat:2 }}</td><td><strong>{{ company.currency }}{{ sale.balance|floatformat:2 }}</strong></td><td><span class="status status-{{ sale.payment_status }}">{{ sale.get_payment_status_display }}</span></td><td>{% if sale.balance %}<form class="quick-payment-form" method="post" action="{% url 'sale_mark_paid' sale.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><select name="method" class="form-select quick-payment-method" aria-label="Payment method"><option value="cash">Cash</option><option value="mobile">Mobile money</option><option value="bank">Bank transfer</option><option value="other">Other</option></select><button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-check2-circle me-1"></i>Mark paid</button></form>{% else %}<span class="paid-check"><i class="bi bi-check-circle-fill"></i> Paid</span>{% endif %}</td><td><a href="{% url 'invoice' sale.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Print invoice"><i class="bi bi-printer"></i></a></td></tr>{% endfor %}
+</tbody></table></div>{% else %}{% url 'sale_create' as add_url %}{% include 'core/_empty.html' with icon='bi-receipt' title='No sales found' text='Adjust the filter or record a new sale.' action_url=add_url action_label='Record sale' %}{% endif %}
+</div>
+{% include 'core/_pagination.html' with page_obj=sales %}
+{% endblock %}
+{% block extra_js %}<script>
+(() => {
+  const form = document.getElementById('sales-filter-form');
+  const search = document.getElementById('sales-search');
+  const status = document.getElementById('sales-status');
+  let timer;
+  search?.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => form.requestSubmit(), 450);
+  });
+  status?.addEventListener('change', () => form.requestSubmit());
+})();
+</script>{% endblock %}
